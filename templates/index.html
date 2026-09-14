@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI&DST 2026 Quiz Championship</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    /* Status banner for connection & autosave */
+    .save-indicator {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .save-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+    }
+  </style>
+</head>
+<body oncontextmenu="return false;">
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="brand-badge">
+      <div class="brand-logo-icon">🏆</div>
+      <div>
+        <div class="brand-title">AI&DST 2026 Quiz</div>
+        <div class="brand-subtitle">Department Championship</div>
+      </div>
+    </div>
+
+    <!-- Timer (Hidden in Lobby) -->
+    <div id="examTimerBox" class="timer-container" style="display: none;">
+      <span class="timer-label">Time Remaining</span>
+      <span id="timerDisplay" class="timer-display">60:00</span>
+    </div>
+
+    <!-- User Details & Submit -->
+    <div class="user-pill">
+      <div class="save-indicator" id="saveStatus" style="display: none;">
+        <div class="save-dot"></div>
+        <span id="saveStatusText">All changes saved</span>
+      </div>
+      <div class="team-badge" id="teamNameBadge">{{ username }}</div>
+      <button id="headerSubmitBtn" class="btn btn-success" style="display: none; padding: 8px 16px;" onclick="openSubmitModal()">
+        <span>Submit Test</span>
+      </button>
+      <a href="/logout" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;">Exit</a>
+    </div>
+  </header>
+
+  <!-- STATE 1: WAITING LOBBY -->
+  <div id="lobbyView" class="lobby-screen glass-panel">
+    <div class="lobby-pulse-ring">⏳</div>
+    <h2 style="font-size: 1.6rem; font-weight: 800;">Waiting for Competition to Start</h2>
+    <p style="color: var(--text-muted); line-height: 1.6; max-width: 500px;">
+      Welcome, <strong style="color: #fff; text-transform: uppercase;">{{ username }}</strong>!<br>
+      The competition has not been launched yet. Admin <strong style="color: var(--accent-cyan);">MAHA</strong> controls the master launch switch.
+    </p>
+    <div style="background: rgba(99, 102, 241, 0.1); border: 1px dashed var(--primary); padding: 14px 20px; border-radius: var(--radius-md); font-size: 0.9rem; color: #cbd5e1;">
+      📡 Keep this page open. Your 60-question test and timer will begin automatically the moment the Admin starts the event!
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px; color: var(--text-dark); font-size: 0.8rem; margin-top: 10px;">
+      <div class="indicator-dot live"></div>
+      <span>Listening for Admin start signal...</span>
+    </div>
+  </div>
+
+  <!-- STATE 2: ACTIVE EXAM INTERFACE -->
+  <div id="examView" class="app-layout" style="display: none;">
+    <!-- Main Question View -->
+    <main class="exam-main">
+      <div class="glass-panel question-card">
+        <!-- Question Meta -->
+        <div class="q-meta">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="q-num-pill" id="currentQNum">Question 1</span>
+            <span class="q-category-tag" id="currentQCategory">English & Verbal</span>
+          </div>
+          <button class="btn btn-warning" id="reviewBtn" onclick="toggleMarkForReview()" style="padding: 6px 14px; font-size: 0.8rem;">
+            <span id="reviewBtnIcon">🔖</span>
+            <span id="reviewBtnText">Mark for Review</span>
+          </button>
+        </div>
+
+        <!-- Optional Passage (Q13-Q15) -->
+        <div id="passageContainer" class="passage-box" style="display: none;">
+          <strong style="color: var(--accent-cyan); display: block; margin-bottom: 6px;">Passage:</strong>
+          <span id="passageText"></span>
+        </div>
+
+        <!-- Optional Code Snippet (Q42) -->
+        <div id="codeContainer" class="code-box" style="display: none;">
+          <code id="codeText"></code>
+        </div>
+
+        <!-- Optional Image / SVG (Q57-Q60) -->
+        <div id="logoContainer" class="logo-display-box" style="display: none;">
+          <div id="logoSvgHolder"></div>
+        </div>
+
+        <!-- Question Text -->
+        <div class="q-text" id="questionText">Loading question...</div>
+
+        <!-- Options List -->
+        <div class="options-grid" id="optionsGrid">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Action Navigation Bar -->
+      <div class="glass-panel exam-controls-bar">
+        <div class="controls-left">
+          <button class="btn btn-secondary" id="prevBtn" onclick="prevQuestion()">
+            <span>← Previous</span>
+          </button>
+          <button class="btn btn-secondary" id="clearBtn" onclick="clearSelectedOption()">
+            <span>Clear Choice</span>
+          </button>
+        </div>
+        <div class="controls-right">
+          <button class="btn btn-primary" id="saveNextBtn" onclick="saveAndNextQuestion()">
+            <span>Save & Next →</span>
+          </button>
+          <button class="btn btn-success" onclick="openSubmitModal()">
+            <span>Finish & Submit</span>
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Right Sidebar Question Palette -->
+    <aside class="palette-sidebar">
+      <div class="glass-panel palette-card">
+        <div class="palette-header">
+          <span>Question Palette</span>
+          <span style="font-size: 0.8rem; color: var(--accent-cyan);" id="answeredProgress">0 / 60 Answered</span>
+        </div>
+
+        <div class="palette-legend">
+          <div class="legend-item"><div class="legend-dot dot-answered"></div><span>Answered</span></div>
+          <div class="legend-item"><div class="legend-dot dot-review"></div><span>Marked</span></div>
+          <div class="legend-item"><div class="legend-dot dot-unanswered"></div><span>Unanswered</span></div>
+          <div class="legend-item"><div class="legend-dot dot-current"></div><span>Current</span></div>
+        </div>
+
+        <div class="palette-grid" id="paletteGrid">
+          <!-- 60 Question Buttons -->
+        </div>
+
+        <button class="btn btn-success btn-block" style="margin-top: 10px; justify-content: center;" onclick="openSubmitModal()">
+          Submit Complete Test
+        </button>
+      </div>
+    </aside>
+  </div>
+
+  <!-- STATE 3: SUBMITTED VIEW -->
+  <div id="submittedView" class="lobby-screen glass-panel" style="display: none;">
+    <div style="font-size: 4rem; margin-bottom: 10px;">🎉</div>
+    <h2 style="font-size: 1.8rem; font-weight: 800; color: var(--success);">Quiz Submitted Successfully!</h2>
+    <p style="color: var(--text-muted); line-height: 1.6;">
+      Thank you for participating! Your answers have been safely recorded.<br>
+      Admin <strong style="color: var(--accent-cyan);">MAHA</strong> will announce the final team leaderboard and ranks shortly.
+    </p>
+    <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid var(--success); padding: 16px 24px; border-radius: var(--radius-md); font-size: 0.95rem;">
+      ✅ Submission recorded on server.<br>
+      You may now close this window or exit.
+    </div>
+    <a href="/logout" class="btn btn-secondary" style="margin-top: 10px;">Log Out</a>
+  </div>
+
+  <!-- STATE 4: DISQUALIFIED VIOLATION LOCK SCREEN -->
+  <div id="disqualifiedView" class="violation-screen" style="display: none;">
+    <div class="violation-card">
+      <div class="violation-icon">🚨</div>
+      <h2 style="color: var(--danger); font-size: 1.8rem; font-weight: 800; margin-bottom: 12px;">TEST TERMINATED: DISQUALIFIED</h2>
+      <p style="color: #fca5a5; font-size: 1.05rem; line-height: 1.6; margin-bottom: 24px;" id="disqualifiedMessage">
+        You were disqualified for navigating away from the exam window or switching tabs.
+      </p>
+      <div style="background: rgba(0,0,0,0.5); padding: 14px; border-radius: 8px; font-size: 0.85rem; color: #94a3b8; margin-bottom: 20px;">
+        Incident logged on Admin Dashboard with exact timestamp.<br>
+        If this was an accident, contact Admin <strong>MAHA</strong> to unlock your session.
+      </div>
+      <a href="/logout" class="btn btn-secondary">Exit Portal</a>
+    </div>
+  </div>
+
+  <!-- WARNING MODAL (1st Strike) -->
+  <div id="warningModal" class="modal-overlay">
+    <div class="modal-box" style="border-color: var(--warning);">
+      <div style="font-size: 2.5rem; margin-bottom: 10px;">⚠️</div>
+      <h3 class="modal-title" style="color: var(--warning);">WARNING: Tab Switch Detected!</h3>
+      <p class="modal-desc" id="warningModalText">
+        Switching tabs, minimizing the browser, or opening other applications is strictly prohibited in this competition!
+      </p>
+      <div style="background: rgba(245, 158, 11, 0.1); border-left: 4px solid var(--warning); padding: 12px 16px; margin-bottom: 20px; font-size: 0.88rem; color: #fed7aa;">
+        <strong>STRIKE 1 OF 2</strong>: If you leave this window one more time, you will be instantly disqualified!
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="closeWarningModal()">I Understand, Return to Test</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUBMIT CONFIRMATION MODAL -->
+  <div id="submitModal" class="modal-overlay">
+    <div class="modal-box">
+      <h3 class="modal-title">Ready to Submit Your Test?</h3>
+      <p class="modal-desc">Please review your question summary before final submission:</p>
+
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px;">
+        <div style="background: rgba(16, 185, 129, 0.12); padding: 14px; border-radius: var(--radius-md); text-align: center; border: 1px solid rgba(16, 185, 129, 0.3);">
+          <div style="font-size: 1.5rem; font-weight: 800; color: var(--success);" id="summaryAnswered">0</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Answered</div>
+        </div>
+        <div style="background: rgba(168, 85, 247, 0.12); padding: 14px; border-radius: var(--radius-md); text-align: center; border: 1px solid rgba(168, 85, 247, 0.3);">
+          <div style="font-size: 1.5rem; font-weight: 800; color: #c084fc;" id="summaryReview">0</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Marked</div>
+        </div>
+        <div style="background: rgba(100, 116, 139, 0.15); padding: 14px; border-radius: var(--radius-md); text-align: center; border: 1px solid rgba(100, 116, 139, 0.3);">
+          <div style="font-size: 1.5rem; font-weight: 800; color: #cbd5e1;" id="summaryUnanswered">60</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Unanswered</div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeSubmitModal()">Continue Test</button>
+        <button class="btn btn-success" id="finalSubmitBtn" onclick="confirmFinalSubmit()">Yes, Submit Quiz</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Anti-Cheat Script -->
+  <script src="/static/js/anti_cheat.js"></script>
+
+  <!-- Quiz Engine Script -->
+  <script>
+    let questionsList = [];
+    let userAnswers = {}; // { q_id: { selected_option, marked_for_review } }
+    let currentIndex = 0;
+    let remainingSeconds = 3600;
+    let timerInterval = null;
+    let lobbyPollInterval = null;
+    let guard = null;
+
+    // Initialize Anti-Cheat Guard
+    guard = new AntiCheatGuard({
+      onWarning: (msg, count, max) => {
+        document.getElementById('warningModalText').innerText = msg;
+        document.getElementById('warningModal').classList.add('active');
+      },
+      onDisqualified: (msg) => {
+        clearInterval(timerInterval);
+        document.getElementById('examView').style.display = 'none';
+        document.getElementById('disqualifiedMessage').innerText = msg;
+        document.getElementById('disqualifiedView').style.display = 'flex';
+      }
+    });
+    guard.init();
+
+    // Check Competition & Team Status on Load
+    window.addEventListener('DOMContentLoaded', async () => {
+      await checkStatusAndRoute();
+    });
+
+    async function checkStatusAndRoute() {
+      try {
+        const res = await fetch('/api/competition_status');
+        const data = await res.json();
+        const team = data.team_info;
+
+        if (team) {
+          if (team.status === 'submitted') {
+            showSubmittedScreen();
+            return;
+          }
+          if (team.status === 'disqualified') {
+            showDisqualifiedScreen(team.disqualified_reason || 'Disqualified for exam violations.');
+            return;
+          }
+        }
+
+        if (data.competition_active) {
+          // Competition is active! Start test immediately
+          await launchExam();
+        } else {
+          // Competition not started yet, wait in lobby
+          showLobby();
+        }
+      } catch (err) {
+        console.error("Status check failed", err);
+      }
+    }
+
+    function showLobby() {
+      document.getElementById('lobbyView').style.display = 'flex';
+      document.getElementById('examView').style.display = 'none';
+      document.getElementById('examTimerBox').style.display = 'none';
+
+      // Poll every 2 seconds for Admin launch signal
+      if (!lobbyPollInterval) {
+        lobbyPollInterval = setInterval(async () => {
+          try {
+            const res = await fetch('/api/competition_status');
+            const data = await res.json();
+            if (data.competition_active) {
+              clearInterval(lobbyPollInterval);
+              lobbyPollInterval = null;
+              await launchExam();
+            }
+          } catch (e) {}
+        }, 2000);
+      }
+    }
+
+    async function launchExam() {
+      try {
+        // 1. Tell backend to start / resume team's timer
+        const startRes = await fetch('/api/start_quiz', { method: 'POST' });
+        const startData = await startRes.json();
+        if (!startData.success) {
+          if (startData.error && startData.error.includes('wait in the lobby')) {
+            showLobby();
+            return;
+          }
+        }
+
+        remainingSeconds = startData.remaining_seconds || 3600;
+
+        // 2. Fetch questions
+        const qRes = await fetch('/api/questions');
+        const qData = await qRes.json();
+        questionsList = qData.questions || [];
+        userAnswers = qData.user_answers || {};
+
+        // 3. Switch UI Views
+        document.getElementById('lobbyView').style.display = 'none';
+        document.getElementById('examView').style.display = 'flex';
+        document.getElementById('examTimerBox').style.display = 'flex';
+        document.getElementById('headerSubmitBtn').style.display = 'inline-flex';
+        document.getElementById('saveStatus').style.display = 'flex';
+
+        // 4. Activate Anti-Cheat Guard
+        guard.activate();
+
+        // 5. Render Palette & First Question
+        buildPalette();
+        renderQuestion(0);
+
+        // 6. Start Timer Countdown
+        startTimer();
+      } catch (err) {
+        console.error("Failed to launch exam", err);
+      }
+    }
+
+    function startTimer() {
+      clearInterval(timerInterval);
+      updateTimerUI();
+      timerInterval = setInterval(() => {
+        remainingSeconds--;
+        updateTimerUI();
+
+        if (remainingSeconds <= 0) {
+          clearInterval(timerInterval);
+          autoSubmitOnTimeUp();
+        }
+      }, 1000);
+    }
+
+    function updateTimerUI() {
+      const m = Math.floor(remainingSeconds / 60);
+      const s = remainingSeconds % 60;
+      const display = document.getElementById('timerDisplay');
+      display.innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+
+      if (remainingSeconds <= 180) { // Under 3 mins
+        display.className = 'timer-display timer-danger';
+      } else if (remainingSeconds <= 600) { // Under 10 mins
+        display.className = 'timer-display timer-warning';
+      } else {
+        display.className = 'timer-display';
+      }
+    }
+
+    function buildPalette() {
+      const grid = document.getElementById('paletteGrid');
+      grid.innerHTML = '';
+
+      questionsList.forEach((q, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'grid-q-btn';
+        btn.id = `pal-btn-${q.id}`;
+        btn.innerText = q.id;
+        btn.onclick = () => renderQuestion(idx);
+        grid.appendChild(btn);
+      });
+
+      refreshPaletteStatus();
+    }
+
+    function refreshPaletteStatus() {
+      let answeredCount = 0;
+      let reviewCount = 0;
+
+      questionsList.forEach((q, idx) => {
+        const btn = document.getElementById(`pal-btn-${q.id}`);
+        if (!btn) return;
+
+        const ans = userAnswers[q.id.toString()];
+        btn.className = 'grid-q-btn';
+
+        if (idx === currentIndex) {
+          btn.classList.add('current');
+        }
+
+        if (ans && ans.selected_option) {
+          btn.classList.add('answered');
+          answeredCount++;
+        }
+        if (ans && ans.marked_for_review) {
+          btn.classList.add('review');
+          reviewCount++;
+        }
+      });
+
+      document.getElementById('answeredProgress').innerText = `${answeredCount} / 60 Answered`;
+    }
+
+    function renderQuestion(index) {
+      if (index < 0 || index >= questionsList.length) return;
+      currentIndex = index;
+      const q = questionsList[index];
+
+      document.getElementById('currentQNum').innerText = `Question ${q.id} of 60`;
+      document.getElementById('currentQCategory').innerText = q.category || 'General';
+      document.getElementById('questionText').innerText = q.question;
+
+      // Passage (Q13-Q15)
+      const passageBox = document.getElementById('passageContainer');
+      if (q.passage) {
+        document.getElementById('passageText').innerText = q.passage;
+        passageBox.style.display = 'block';
+      } else {
+        passageBox.style.display = 'none';
+      }
+
+      // Code snippet (Q42)
+      const codeBox = document.getElementById('codeContainer');
+      if (q.code_snippet) {
+        document.getElementById('codeText').innerText = q.code_snippet;
+        codeBox.style.display = 'block';
+      } else {
+        codeBox.style.display = 'none';
+      }
+
+      // Fixed PNG image display for Q57-Q60
+      const logoBox = document.getElementById('logoContainer');
+      const logoSvgHolder = document.getElementById('logoSvgHolder');
+      const questionImageMap = {
+        57: '/static/images/q57.png',
+        58: '/static/images/q58.png',
+        59: '/static/images/q59.png',
+        60: '/static/images/q60.png'
+      };
+
+      if (questionImageMap[q.id]) {
+        logoSvgHolder.innerHTML = `<img src="${questionImageMap[q.id]}" alt="Question ${q.id} image" loading="eager">`;
+        logoBox.style.display = 'flex';
+      } else {
+        logoSvgHolder.innerHTML = '';
+        logoBox.style.display = 'none';
+      }
+
+      // Options
+      const grid = document.getElementById('optionsGrid');
+      grid.innerHTML = '';
+
+      const currentAns = userAnswers[q.id.toString()];
+      const selectedKey = currentAns ? currentAns.selected_option : null;
+
+      Object.entries(q.options).forEach(([key, val]) => {
+        const optEl = document.createElement('div');
+        optEl.className = 'option-item' + (selectedKey === key ? ' selected' : '');
+        optEl.id = `opt-${key}`;
+        optEl.onclick = () => selectOption(q.id, key);
+
+        optEl.innerHTML = `
+          <div class="option-letter">${key}</div>
+          <div class="option-text">${val}</div>
+        `;
+        grid.appendChild(optEl);
+      });
+
+      // Mark for Review state
+      const isReview = currentAns ? currentAns.marked_for_review : false;
+      updateReviewButtonUI(isReview);
+
+      // Previous button disable check
+      document.getElementById('prevBtn').disabled = (currentIndex === 0);
+
+      // Update palette highlights
+      refreshPaletteStatus();
+    }
+
+    async function selectOption(qId, key) {
+      if (!userAnswers[qId.toString()]) {
+        userAnswers[qId.toString()] = { selected_option: null, marked_for_review: false };
+      }
+      userAnswers[qId.toString()].selected_option = key;
+
+      // Highlight locally
+      document.querySelectorAll('.option-item').forEach(el => el.classList.remove('selected'));
+      const activeEl = document.getElementById(`opt-${key}`);
+      if (activeEl) activeEl.classList.add('selected');
+
+      refreshPaletteStatus();
+
+      // Autosave to server
+      await syncAnswerToServer(qId, key, userAnswers[qId.toString()].marked_for_review);
+    }
+
+    async function clearSelectedOption() {
+      const q = questionsList[currentIndex];
+      if (userAnswers[q.id.toString()]) {
+        userAnswers[q.id.toString()].selected_option = null;
+      }
+      document.querySelectorAll('.option-item').forEach(el => el.classList.remove('selected'));
+      refreshPaletteStatus();
+      await syncAnswerToServer(q.id, null, userAnswers[q.id.toString()]?.marked_for_review || false);
+    }
+
+    async function toggleMarkForReview() {
+      const q = questionsList[currentIndex];
+      if (!userAnswers[q.id.toString()]) {
+        userAnswers[q.id.toString()] = { selected_option: null, marked_for_review: false };
+      }
+      const newReview = !userAnswers[q.id.toString()].marked_for_review;
+      userAnswers[q.id.toString()].marked_for_review = newReview;
+
+      updateReviewButtonUI(newReview);
+      refreshPaletteStatus();
+
+      await syncAnswerToServer(q.id, userAnswers[q.id.toString()].selected_option, newReview);
+    }
+
+    function updateReviewButtonUI(isReview) {
+      const btn = document.getElementById('reviewBtn');
+      const text = document.getElementById('reviewBtnText');
+      if (isReview) {
+        btn.style.background = 'var(--purple)';
+        btn.style.color = '#fff';
+        text.innerText = 'Marked for Review';
+      } else {
+        btn.style.background = 'var(--purple-bg)';
+        btn.style.color = '#c084fc';
+        text.innerText = 'Mark for Review';
+      }
+    }
+
+    async function syncAnswerToServer(qId, selected, marked) {
+      const saveText = document.getElementById('saveStatusText');
+      saveText.innerText = 'Saving...';
+      try {
+        const res = await fetch('/api/save_answer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            question_id: qId,
+            selected_option: selected,
+            marked_for_review: marked
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          saveText.innerText = 'All changes saved';
+        } else if (data.time_expired) {
+          autoSubmitOnTimeUp();
+        }
+      } catch (e) {
+        saveText.innerText = 'Save offline (retrying...)';
+      }
+    }
+
+    function prevQuestion() {
+      if (currentIndex > 0) {
+        renderQuestion(currentIndex - 1);
+      }
+    }
+
+    function saveAndNextQuestion() {
+      if (currentIndex < questionsList.length - 1) {
+        renderQuestion(currentIndex + 1);
+      } else {
+        openSubmitModal();
+      }
+    }
+
+    // Modal Handlers
+    function closeWarningModal() {
+      document.getElementById('warningModal').classList.remove('active');
+    }
+
+    function openSubmitModal() {
+      let answered = 0;
+      let review = 0;
+      questionsList.forEach(q => {
+        const ans = userAnswers[q.id.toString()];
+        if (ans && ans.selected_option) answered++;
+        if (ans && ans.marked_for_review) review++;
+      });
+      const unanswered = questionsList.length - answered;
+
+      document.getElementById('summaryAnswered').innerText = answered;
+      document.getElementById('summaryReview').innerText = review;
+      document.getElementById('summaryUnanswered').innerText = unanswered;
+
+      document.getElementById('submitModal').classList.add('active');
+    }
+
+    function closeSubmitModal() {
+      document.getElementById('submitModal').classList.remove('active');
+    }
+
+    async function confirmFinalSubmit() {
+      const btn = document.getElementById('finalSubmitBtn');
+      btn.disabled = true;
+      btn.innerText = 'Submitting...';
+
+      try {
+        const res = await fetch('/api/submit_quiz', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ auto_submit: false })
+        });
+        const data = await res.json();
+        if (data.success) {
+          clearInterval(timerInterval);
+          guard.deactivate();
+          closeSubmitModal();
+          showSubmittedScreen();
+        }
+      } catch (err) {
+        alert('Network error while submitting. Please check connection and retry.');
+        btn.disabled = false;
+        btn.innerText = 'Yes, Submit Quiz';
+      }
+    }
+
+    async function autoSubmitOnTimeUp() {
+      alert("⏰ TIME IS UP! Your exam is being automatically submitted.");
+      try {
+        await fetch('/api/submit_quiz', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ auto_submit: true, reason: 'time_expired' })
+        });
+      } finally {
+        guard.deactivate();
+        showSubmittedScreen();
+      }
+    }
+
+    function showSubmittedScreen() {
+      document.getElementById('lobbyView').style.display = 'none';
+      document.getElementById('examView').style.display = 'none';
+      document.getElementById('submittedView').style.display = 'flex';
+      document.getElementById('examTimerBox').style.display = 'none';
+    }
+
+    function showDisqualifiedScreen(reason) {
+      document.getElementById('lobbyView').style.display = 'none';
+      document.getElementById('examView').style.display = 'none';
+      document.getElementById('disqualifiedMessage').innerText = reason;
+      document.getElementById('disqualifiedView').style.display = 'flex';
+      document.getElementById('examTimerBox').style.display = 'none';
+    }
+  </script>
+</body>
+</html>

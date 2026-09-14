@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - AI&DST 2026 Quiz Championship</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    .login-wrapper {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .login-card {
+      max-width: 440px;
+      width: 100%;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .login-header {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .input-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .form-input {
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      color: #ffffff;
+      padding: 14px 16px;
+      border-radius: var(--radius-md);
+      font-size: 1rem;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+    .form-input:focus {
+      border-color: var(--primary-light);
+      box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+    }
+    .btn-block {
+      width: 100%;
+      padding: 14px;
+      font-size: 1rem;
+      justify-content: center;
+    }
+    .error-banner {
+      background: var(--danger-bg);
+      border: 1px solid var(--danger);
+      color: #fca5a5;
+      padding: 12px;
+      border-radius: var(--radius-md);
+      font-size: 0.88rem;
+      display: none;
+    }
+    .info-footer {
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 16px;
+      font-size: 0.78rem;
+      color: var(--text-dark);
+      text-align: center;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-wrapper">
+    <div class="glass-panel login-card">
+      <div class="login-header">
+        <div class="brand-logo-icon" style="width: 52px; height: 52px; font-size: 24px;">🏆</div>
+        <div>
+          <h1 class="brand-title" style="font-size: 1.5rem;">AI&DST 2026</h1>
+          <p class="brand-subtitle" style="font-size: 0.85rem;">Grand Quiz Competition Portal</p>
+        </div>
+      </div>
+
+      <div id="errorBanner" class="error-banner"></div>
+
+      <form id="loginForm" onsubmit="handleLogin(event)" style="display: flex; flex-direction: column; gap: 18px;">
+        <div class="input-group">
+          <label class="input-label" for="usernameInput">Username / Team ID</label>
+          <input 
+            type="text" 
+            id="usernameInput" 
+            class="form-input" 
+            placeholder="e.g. team1, team2... or MAHA" 
+            required 
+            autocomplete="off"
+            autofocus
+          >
+        </div>
+
+        <div class="input-group">
+          <label class="input-label" for="passwordInput">Password</label>
+          <input 
+            type="password" 
+            id="passwordInput" 
+            class="form-input" 
+            placeholder="Enter your security password" 
+            required
+          >
+        </div>
+
+        <button type="submit" id="loginBtn" class="btn btn-primary btn-block">
+          <span>Sign In & Continue</span>
+          <span>➜</span>
+        </button>
+      </form>
+
+      <div class="info-footer">
+        <strong>Credentials Guide:</strong><br>
+        Teams: <code>team1</code> – <code>team20</code> (Password: <code>AI&DST2026</code>)<br>
+        Admin: <code>MAHA</code> (Password: <code>AI&DSA2026</code>)
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function handleLogin(e) {
+      e.preventDefault();
+      const errBanner = document.getElementById('errorBanner');
+      const btn = document.getElementById('loginBtn');
+      const username = document.getElementById('usernameInput').value.trim();
+      const password = document.getElementById('passwordInput').value.trim();
+
+      errBanner.style.display = 'none';
+      btn.disabled = true;
+      btn.innerHTML = '<span>Verifying...</span>';
+
+      try {
+        const res = await fetch('/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          window.location.href = data.redirect;
+        } else {
+          errBanner.innerText = data.error || 'Login failed. Please check credentials.';
+          errBanner.style.display = 'block';
+          btn.disabled = false;
+          btn.innerHTML = '<span>Sign In & Continue</span> <span>➜</span>';
+        }
+      } catch (err) {
+        errBanner.innerText = 'Network error connecting to server.';
+        errBanner.style.display = 'block';
+        btn.disabled = false;
+        btn.innerHTML = '<span>Sign In & Continue</span> <span>➜</span>';
+      }
+    }
+  </script>
+</body>
+</html>
