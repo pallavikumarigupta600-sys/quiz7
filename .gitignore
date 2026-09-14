@@ -1,0 +1,45 @@
+# Python virtual environments
+venv/
+.venv/
+.env/
+.env
+
+# Python cache and bytecode
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+
+# Local/editor files
+.vscode/
+.idea/
+
+# Build / generated output
+node_modules/
+dist/
+build/
+.cache/
+.DS_Store
+
+# Logs and temp files
+*.log
+*.tmp
+*.bak
+*~
+
+# Local database or generated runtime data
+quiz.db
+
+# Keep required application files and assets
+!app.py
+!questions_data.py
+!templates/
+!templates/*.html
+!static/
+!static/**
+!static/images/
+!static/images/*.png
+!requirements.txt

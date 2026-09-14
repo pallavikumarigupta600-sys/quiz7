@@ -683,14 +683,15 @@ def api_admin_export_csv():
 # Main Entry Point
 # -------------------------------------------------------------
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
     local_ip = get_local_ip()
     print("=" * 65)
     print("   AI&DST 2026 QUIZ COMPETITION PLATFORM SERVER STARTED")
     print("=" * 65)
-    print(f"   -> Local URL:      http://localhost:5000")
-    print(f"   -> Wi-Fi/LAN URL:  http://{local_ip}:5000")
+    print(f"   -> Local URL:      http://localhost:{port}")
+    print(f"   -> Wi-Fi/LAN URL:  http://{local_ip}:{port}")
     print(f"   -> Admin Username: MAHA")
     print(f"   -> Admin Password: AI&DSA2026")
     print(f"   -> Teams:          team1 to team20 (Password: AI&DST2026)")
     print("=" * 65)
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=False)
